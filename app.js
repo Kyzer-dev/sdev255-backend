@@ -4,59 +4,59 @@ const express = require('express')
 const router = express.Router()
 var cors = require('cors')
 const app = express() // assigns an express server
+const bodyParser = require("body-parser")
+const Song = require("./models/songs")
 app.use(cors()) // needed for same device stuff
 app.use('/api', router)
+app.use(bodyParser.json())
+app.use(express.json())
 
-
-/* OLD - EARLY TUTORIAL
-activates web server (port,func)
-app.listen(port,function(){
-    console.log("Listening on port 3000")
+// grab songs
+router.get("/songs", async(req, res) => {
+    try {
+        const songs = await Song.find({})
+        res.send(songs)
+        console.log(songs)
+    }
+    catch (err){
+        console.log(err)
+    }
 })
 
-functions have param/response
-GET (regular request) http://localhost:3000/hello
-app.get('/hello', function(req,res){
-    res.send("<h1>Hello Express</h1>")
+router.get("/songs/:id", async(req,res) =>{
+    try{
+        const song = await Song.findById(req.params.id)
+        res.json(song)
+    }
+    catch (err){
+        res.status(400).send(err)
+    }
 })
 
-app.get('/goodbye', function(req,res){
-    res.send('<h1>Goodhye, Express</h1>')
+router.post("/songs", async(req,res) => {
+    try{
+        const song = await new Song(req.body)
+        await song.save()
+        res.status(201).json(song)
+        console.log(song)
+    }
+
+    catch(err){
+        res.status(400).send(err)
+    }
 })
 
-making an api using routes (handles browser requests)
-Routes
-*/
-
-router.get('/songs',function(req,res){
-    const songs = [
-        //     {
-        //     title: "Uptown Funk",
-        //     artist: "Bruno Mars",
-        //     popularity: 10,
-        //     releaseDate: new Date(2014,11,10),
-        //     genre: ['funk', 'boogie']
-        // },
-        {
-            title: "We Found Love",
-            artist: "Rihanna",
-            popularity: 10,
-            releaseDate: new Date(2011,9,22),
-            genre: ['electro house']
-        },
-        {
-            title: "Happy",
-            artist: "Pharrell Williams",
-            popularity: 10,
-            releaseDate: new Date(2013,11,21),
-            genre: ['soul', 'new soul']
-        }
-    ];
-
-    res.json(songs)
+router.put("/songs/:id", async(req,res) => {
+    try{
+        const song = req.body
+        await Song.updateOne({_id: req.params.id},song)
+        console.log(song)
+        res.sendStatus(204)
+    }
+    catch(err){
+        res.status(400).send(err)
+    }
 })
-
-// all requests that use an api typically start with /api directory
 
 app.listen(port,function(){
     console.log("Running on port " + port)
