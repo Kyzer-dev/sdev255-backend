@@ -1,15 +1,86 @@
 // setup
-const port = 3000
+const port = process.env.PORT || 3000
 const express = require('express')
+const secret = "somesecret"
 const router = express.Router()
-var cors = require('cors')
-const app = express() // assigns an express server
 const bodyParser = require("body-parser")
+const jwt = require('jwt-simple')
 const Song = require("./models/songs")
+const User = require("./models/users")
+var cors = require('cors')
+
+const app = express() // assigns an express server
 app.use(cors()) // needed for same device stuff
-app.use('/api', router)
+
 app.use(bodyParser.json())
 app.use(express.json())
+
+router.post("/user", async(req,res)=>{
+    if(!req.body.username || !req.body.password){
+        res.status(400).json({error: "Missing username or password"})
+    }
+    const newUser = await new User ({
+        username: req.body.username,
+        password: req.body.password,
+        status: req.body.status
+        
+    })
+    
+    try{
+        await newUser.save()
+        res.sendStatus(201)
+    }
+    catch(err){
+        res.sendStatus(400).send(err)
+    }
+})
+
+router.post("/auth", async(req,res) => {
+    if (!req.body.username || !req.body.password) {
+        res.status(400).json({error: "Missing Username or Password"})
+        return
+    }
+    
+    let user = await User.findOne({username : req.body.username})
+
+    if (!user){
+        res.status(401).json({error: "Bad Username"})
+    }
+    else {
+        if (user.password != req.body.password){
+            res.status(401).json({error:"Bad Password"})
+        }
+        else{
+            username2 = user.username
+            const token = jwt.encode({username : user.username}, secret)
+            const auth = 1
+
+            res.json({
+                username2,
+                token:token,
+                auth:auth
+            })
+        }
+    }
+})
+
+router.get("/status", async(req,res) => {
+    if (!req.headers["x-auth"]) {
+        return res.status(401).json({error: "Missing X-Auth"})
+    }
+
+    const token = req.headers["x-auth"]
+    try{
+        const decoded = jwt.decode(token,secret)
+
+        let users = User.find({}, "username status")
+        res.json(users)
+    }
+    catch(ex){
+        res.status(401).json({error: "invalid jwt"})
+    }
+})
+
 
 // grab songs
 router.get("/songs", async(req, res) => {
@@ -46,17 +117,29 @@ router.post("/songs", async(req,res) => {
     }
 })
 
-router.put("/songs/:id", async(req,res) => {
+router.delete("/songs/:id", async(req,res) => {
     try{
-        const song = req.body
-        await Song.updateOne({_id: req.params.id},song)
-        console.log(song)
+        const song = await Song.findById(req.params.id)
+        await Song.deleteOne({_id: song._id})
         res.sendStatus(204)
     }
     catch(err){
         res.status(400).send(err)
     }
 })
+
+router.put("/songs/:id", async(req,res) => {
+    try{
+        const song = req.body
+        await Song.updateOne({_id: song._id},song)
+        res.sendStatus(204)
+    }
+    catch(err){
+        res.status(400).send(err)
+    }
+})
+
+app.use('/api', router)
 
 app.listen(port,function(){
     console.log("Running on port " + port)
